@@ -1,0 +1,82 @@
+# JobRadar Configuration Example
+# Copy this file to config.yaml and customize
+
+name: "My Job Monitor"
+
+# ============ Search Configurations ============
+searches:
+  - name: "Golang API"
+    keywords: 
+      - "golang api"
+      - "go backend"
+      - "gin framework"
+    
+  - name: "Microservices"
+    keywords:
+      - "microservices"
+      - "go microservices"
+      - "grpc golang"
+      
+  - name: "Backend Development"
+    keywords:
+      - "backend developer"
+      - "go developer"
+
+# ============ Filter Settings ============
+filters:
+  # Budget range (USD)
+  budget:
+    min: 100
+    max: 5000
+  
+  # Job type: fixed / hourly / all
+  job_type: "fixed"
+  
+  # Only jobs posted within X hours
+  posted_within_hours: 24
+  
+  # Skip jobs with more than X proposals
+  max_proposals: 20
+  
+  # Skip jobs containing these keywords
+  exclude_keywords:
+    - "lowest bid"
+    - "cheap"
+    - "budget is tight"
+    - "urgent need today"
+
+# ============ Notification Settings ============
+notifications:
+  telegram:
+    enabled: true
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    chat_id: "${TELEGRAM_CHAT_ID}"
+  
+  email:
+    enabled: false
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    username: "${EMAIL_USERNAME}"
+    password: "${EMAIL_PASSWORD}"
+    to: "your@email.com"
+
+# ============ Schedule Settings ============
+schedule:
+  # Check interval in minutes
+  interval_minutes: 30
+  
+  # Quiet hours (no notifications)
+  quiet_hours:
+    enabled: true
+    start: "23:00"
+    end: "07:00"
+    timezone: "Asia/Shanghai"
+
+# ============ Storage Settings ============
+storage:
+  # SQLite database path
+  database: "jobradar.db"
+  
+  # Keep records for X days
+  retention_days: 7
+
