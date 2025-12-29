@@ -3,66 +3,73 @@
 
 name: "My Job Monitor"
 
-# ============ RSS Feed Configuration ============
-# How to get your RSS URL:
-# 1. Login to Upwork
-# 2. Go to Find Work page
-# 3. Set your search filters
-# 4. Click the RSS icon (usually top-right of search results)
-# 5. Copy the full URL including securityToken
+# ============ Upwork API Configuration (Recommended) ============
+# To use Upwork API:
+# 1. Apply for API access at https://www.upwork.com/developer/keys/apply
+# 2. Complete OAuth 2.0 flow to get access token
+# 3. Set the access token below or via environment variable
 
-# Option 1: Use direct RSS URLs (recommended)
-# Each URL is a complete RSS feed URL from Upwork with your auth token
-rss_feeds:
-  - name: "Golang Jobs"
-    url: "${UPWORK_RSS_URL_1}"  # Set in environment variable
-    # Or paste directly: "https://www.upwork.com/ab/feed/jobs/rss?securityToken=xxx&..."
-  
-  # - name: "Python Jobs"
-  #   url: "${UPWORK_RSS_URL_2}"
+upwork_api:
+  enabled: true
+  access_token: "${UPWORK_ACCESS_TOKEN}"  # Set via environment variable
 
-# Option 2: Use keyword search (DEPRECATED - Upwork no longer supports public RSS)
-# Only works if you have a valid base RSS URL with auth token
+# ============ Search Configurations ============
+# Define what jobs to search for
+# When using upwork_api, these keywords are used for API search
+# When using rss_feeds, these are used for local filtering
+
 searches:
   - name: "Golang API"
     keywords: 
-      - "golang api"
+      - "golang"
+      - "go developer"
       - "go backend"
-      - "gin framework"
+    limit: 50  # Max jobs to fetch per keyword (API only)
     
   - name: "Microservices"
     keywords:
       - "microservices"
-      - "go microservices"
-      - "grpc golang"
+      - "grpc"
+    limit: 30
       
   - name: "Backend Development"
     keywords:
       - "backend developer"
-      - "go developer"
+    limit: 30
+
+# ============ RSS Feeds (Alternative - if you have valid RSS URLs) ============
+# Upwork RSS is deprecated as of August 2024
+# You can still use RSS feeds from other job sites
+
+# rss_feeds:
+#   - name: "RemoteOK Golang"
+#     url: "https://remoteok.com/remote-golang-jobs.rss"
+#   - name: "Other Job Site"
+#     url: "https://example.com/jobs.rss"
 
 # ============ Filter Settings ============
 filters:
   # Budget range (USD)
   budget:
     min: 100
-    max: 5000
+    max: 10000
   
   # Job type: fixed / hourly / all
-  job_type: "fixed"
+  job_type: "all"
   
   # Only jobs posted within X hours
-  posted_within_hours: 24
+  posted_within_hours: 48
   
   # Skip jobs with more than X proposals
   max_proposals: 20
   
-  # Skip jobs containing these keywords
+  # Skip jobs containing these keywords (case-insensitive)
   exclude_keywords:
     - "lowest bid"
     - "cheap"
     - "budget is tight"
     - "urgent need today"
+    - "entry level"
 
 # ============ Notification Settings ============
 notifications:
@@ -98,4 +105,3 @@ storage:
   
   # Keep records for X days
   retention_days: 7
-

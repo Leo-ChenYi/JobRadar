@@ -48,28 +48,38 @@ make build
 cp config.example.yaml config.yaml
 ```
 
-2. **获取你的 Upwork RSS URL**（重要！）：
-   - 登录你的 Upwork 账户
-   - 进入 **Find Work** 页面
-   - 设置搜索条件（关键词、预算等）
-   - 点击搜索结果右上角的 **RSS 图标**
-   - 复制完整的 URL（包含认证 token）
+2. **设置 Upwork API 访问权限**（必需）：
+   
+   由于 Upwork 在 2024 年 8 月停止了 RSS 功能，你需要使用官方 GraphQL API：
+   
+   - 在 https://www.upwork.com/developer/keys/apply 申请 API 访问权限
+   - 申请 "Read marketplace Job Postings - Public" 权限
+   - 完成 OAuth 2.0 认证流程获取 access token
+   - 将 token 设置为环境变量
 
 3. 编辑 `config.yaml` 配置你的设置：
 
 ```yaml
 name: "我的工作监控"
 
-# 使用从 Upwork 获取的认证 RSS URL
-rss_feeds:
+# Upwork API 配置
+upwork_api:
+  enabled: true
+  access_token: "${UPWORK_ACCESS_TOKEN}"
+
+# 定义搜索条件
+searches:
   - name: "Golang Jobs"
-    url: "https://www.upwork.com/ab/feed/jobs/rss?securityToken=YOUR_TOKEN&userUid=YOUR_UID&..."
+    keywords: 
+      - "golang"
+      - "go developer"
+    limit: 50
 
 filters:
   budget:
     min: 100
     max: 5000
-  job_type: "fixed"
+  job_type: "all"
   max_proposals: 20
   exclude_keywords:
     - "lowest bid"
@@ -83,21 +93,17 @@ notifications:
 
 schedule:
   interval_minutes: 30
-  quiet_hours:
-    enabled: true
-    start: "23:00"
-    end: "07:00"
-    timezone: "Asia/Shanghai"
 ```
 
 4. 设置环境变量：
 
 ```bash
+export UPWORK_ACCESS_TOKEN="你的Upwork API token"
 export TELEGRAM_BOT_TOKEN="你的机器人token"
 export TELEGRAM_CHAT_ID="你的聊天ID"
 ```
 
-> **注意**：Upwork 不再支持公开的 RSS 订阅源。你必须登录 Upwork 并获取包含认证 token 的个人 RSS URL。
+> **注意**：Upwork 在 2024 年 8 月停止了 RSS 功能。本工具现在使用官方 Upwork GraphQL API。
 
 ### 使用方法
 

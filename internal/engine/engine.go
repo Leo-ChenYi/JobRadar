@@ -18,12 +18,13 @@ import (
 
 // Engine is the main JobRadar engine that coordinates all components
 type Engine struct {
-	config    *config.AppConfig
-	storage   *storage.Storage
-	fetcher   *fetcher.RSSFetcher
-	filter    *filter.Filter
-	notifiers []notifier.Notifier
-	scheduler *scheduler.Scheduler
+	config     *config.AppConfig
+	storage    *storage.Storage
+	rssFetcher *fetcher.RSSFetcher
+	apiFetcher *fetcher.UpworkAPIFetcher
+	filter     *filter.Filter
+	notifiers  []notifier.Notifier
+	scheduler  *scheduler.Scheduler
 }
 
 // New creates a new Engine instance
@@ -45,12 +46,19 @@ func New(cfg *config.AppConfig) (*Engine, error) {
 		notifiers = append(notifiers, n)
 	}
 
+	// Initialize fetchers
+	var apiFetcher *fetcher.UpworkAPIFetcher
+	if cfg.UpworkAPI.Enabled {
+		apiFetcher = fetcher.NewUpworkAPIFetcher(cfg.UpworkAPI.AccessToken)
+	}
+
 	return &Engine{
-		config:    cfg,
-		storage:   store,
-		fetcher:   fetcher.NewRSSFetcher(),
-		filter:    filter.New(cfg.Filters),
-		notifiers: notifiers,
+		config:     cfg,
+		storage:    store,
+		rssFetcher: fetcher.NewRSSFetcher(),
+		apiFetcher: apiFetcher,
+		filter:     filter.New(cfg.Filters),
+		notifiers:  notifiers,
 	}, nil
 }
 
@@ -58,16 +66,40 @@ func New(cfg *config.AppConfig) (*Engine, error) {
 func (e *Engine) Run() (*model.RunStats, error) {
 	stats := model.NewRunStats()
 
-	log.Info().Msg("Fetching jobs from RSS feeds...")
+	log.Info().Msg("Fetching jobs...")
 
-	// 1. Fetch jobs - prefer direct RSS URLs over keyword search
+	// 1. Fetch jobs from configured sources
 	var allJobs []*model.Job
-	var feedNames []string // Track which feeds the jobs came from
+	var feedNames []string // Track which feeds/searches the jobs came from
 
-	// Method 1: Use direct RSS URLs (recommended)
-	if len(e.config.RSSFeeds) > 0 {
+	// Method 1: Use Upwork GraphQL API (recommended)
+	if e.config.UpworkAPI.Enabled && e.apiFetcher != nil {
+		log.Info().Msg("Using Upwork GraphQL API")
+		for _, search := range e.config.Searches {
+			// Combine keywords into search term
+			for _, keyword := range search.Keywords {
+				limit := search.Limit
+				if limit <= 0 {
+					limit = 50
+				}
+				jobs, err := e.apiFetcher.FetchJobs(keyword, limit)
+				if err != nil {
+					log.Error().Err(err).Str("search", search.Name).Str("keyword", keyword).Msg("Failed to fetch from API")
+					continue
+				}
+				for _, job := range jobs {
+					allJobs = append(allJobs, job)
+					feedNames = append(feedNames, search.Name)
+				}
+			}
+		}
+	}
+
+	// Method 2: Use direct RSS URLs
+	if !e.config.UpworkAPI.Enabled && len(e.config.RSSFeeds) > 0 {
+		log.Info().Msg("Using RSS feeds")
 		for _, feed := range e.config.RSSFeeds {
-			jobs, err := e.fetcher.FetchFromURL(feed.URL)
+			jobs, err := e.rssFetcher.FetchFromURL(feed.URL)
 			if err != nil {
 				log.Error().Err(err).Str("feed", feed.Name).Msg("Failed to fetch RSS feed")
 				continue
@@ -80,11 +112,11 @@ func (e *Engine) Run() (*model.RunStats, error) {
 		}
 	}
 
-	// Method 2: Fallback to keyword search (deprecated)
-	if len(e.config.RSSFeeds) == 0 && len(e.config.Searches) > 0 {
-		log.Warn().Msg("Using deprecated keyword search - public RSS is no longer supported by Upwork")
+	// Method 3: Fallback to keyword search (deprecated - won't work with Upwork)
+	if !e.config.UpworkAPI.Enabled && len(e.config.RSSFeeds) == 0 && len(e.config.Searches) > 0 {
+		log.Warn().Msg("Using deprecated keyword RSS search - this no longer works with Upwork")
 		for _, search := range e.config.Searches {
-			jobs, err := e.fetcher.Fetch(search.Keywords)
+			jobs, err := e.rssFetcher.Fetch(search.Keywords)
 			if err != nil {
 				log.Error().Err(err).Str("search", search.Name).Msg("Failed to fetch")
 				continue
@@ -93,7 +125,6 @@ func (e *Engine) Run() (*model.RunStats, error) {
 				allJobs = append(allJobs, job)
 				feedNames = append(feedNames, search.Name)
 			}
-			log.Debug().Str("search", search.Name).Int("count", len(jobs)).Msg("Fetched jobs")
 		}
 	}
 
@@ -104,24 +135,31 @@ func (e *Engine) Run() (*model.RunStats, error) {
 	log.Info().Msg("Filtering jobs...")
 	var matchedJobs []*model.MatchedJob
 
+	// Deduplicate jobs by ID
+	seen := make(map[string]bool)
+
 	for i, job := range allJobs {
+		// Skip duplicates
+		if seen[job.ID] {
+			continue
+		}
+		seen[job.ID] = true
+
 		// Get keywords to match against
 		var keywords []string
 		feedName := feedNames[i]
 
-		// If using RSS feeds, use filter exclude keywords only (job already matches the feed criteria)
-		if len(e.config.RSSFeeds) > 0 {
-			// For RSS feeds, we consider all jobs as "matched" since they already come from a filtered feed
-			// We just apply our additional filters
-			keywords = []string{feedName} // Use feed name as the "matched keyword"
-		} else {
-			// For keyword search, find matching keywords
-			for _, search := range e.config.Searches {
-				if search.Name == feedName {
-					keywords = search.Keywords
-					break
-				}
+		// Find the search config for this job
+		for _, search := range e.config.Searches {
+			if search.Name == feedName {
+				keywords = search.Keywords
+				break
 			}
+		}
+
+		// If no keywords found (RSS feed), use feed name
+		if len(keywords) == 0 {
+			keywords = []string{feedName}
 		}
 
 		matchedKeywords := e.filter.Match(job, keywords)

@@ -48,28 +48,38 @@ make build
 cp config.example.yaml config.yaml
 ```
 
-2. **Get your Upwork RSS URL** (Important!):
-   - Login to your Upwork account
-   - Go to **Find Work** page
-   - Set your search filters (keywords, budget, etc.)
-   - Click the **RSS icon** (usually top-right of search results)
-   - Copy the full URL (it contains your authentication token)
+2. **Set up Upwork API access** (Required):
+   
+   Since Upwork discontinued RSS feeds in August 2024, you need to use their GraphQL API:
+   
+   - Apply for API access at https://www.upwork.com/developer/keys/apply
+   - Request "Read marketplace Job Postings - Public" permission
+   - Complete OAuth 2.0 flow to get your access token
+   - Set the token in environment variable
 
 3. Edit `config.yaml` with your settings:
 
 ```yaml
 name: "My Job Monitor"
 
-# Use your authenticated RSS URLs from Upwork
-rss_feeds:
+# Upwork API configuration
+upwork_api:
+  enabled: true
+  access_token: "${UPWORK_ACCESS_TOKEN}"
+
+# Define your job searches
+searches:
   - name: "Golang Jobs"
-    url: "https://www.upwork.com/ab/feed/jobs/rss?securityToken=YOUR_TOKEN&userUid=YOUR_UID&..."
+    keywords: 
+      - "golang"
+      - "go developer"
+    limit: 50
 
 filters:
   budget:
     min: 100
     max: 5000
-  job_type: "fixed"
+  job_type: "all"
   max_proposals: 20
   exclude_keywords:
     - "lowest bid"
@@ -83,21 +93,17 @@ notifications:
 
 schedule:
   interval_minutes: 30
-  quiet_hours:
-    enabled: true
-    start: "23:00"
-    end: "07:00"
-    timezone: "Asia/Shanghai"
 ```
 
 4. Set environment variables:
 
 ```bash
+export UPWORK_ACCESS_TOKEN="your_upwork_api_token"
 export TELEGRAM_BOT_TOKEN="your_bot_token"
 export TELEGRAM_CHAT_ID="your_chat_id"
 ```
 
-> **Note**: Upwork no longer supports public RSS feeds. You must login to Upwork and get your personal RSS URL which includes authentication tokens.
+> **Note**: Upwork discontinued RSS feeds in August 2024. This tool now uses the official Upwork GraphQL API.
 
 ### Usage
 

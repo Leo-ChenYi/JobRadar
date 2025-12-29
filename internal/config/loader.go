@@ -33,6 +33,9 @@ func Load() (*AppConfig, error) {
 
 // expandEnvVars replaces ${VAR} patterns with environment variable values
 func expandEnvVars(cfg *AppConfig) {
+	// Upwork API
+	cfg.UpworkAPI.AccessToken = expandEnvVar(cfg.UpworkAPI.AccessToken)
+
 	// RSS Feeds
 	for i := range cfg.RSSFeeds {
 		cfg.RSSFeeds[i].URL = expandEnvVar(cfg.RSSFeeds[i].URL)
@@ -63,9 +66,24 @@ func expandEnvVar(s string) string {
 func validate(cfg *AppConfig) error {
 	var errors []string
 
-	// Check if at least one RSS feed or search is configured
-	if len(cfg.RSSFeeds) == 0 && len(cfg.Searches) == 0 {
-		errors = append(errors, "at least one rss_feeds or searches configuration is required")
+	// Check if at least one data source is configured
+	hasUpworkAPI := cfg.UpworkAPI.Enabled
+	hasRSSFeeds := len(cfg.RSSFeeds) > 0
+	hasSearches := len(cfg.Searches) > 0
+
+	if !hasUpworkAPI && !hasRSSFeeds && !hasSearches {
+		errors = append(errors, "at least one data source is required: upwork_api, rss_feeds, or searches")
+	}
+
+	// Validate Upwork API config
+	if cfg.UpworkAPI.Enabled {
+		if cfg.UpworkAPI.AccessToken == "" || strings.HasPrefix(cfg.UpworkAPI.AccessToken, "${") {
+			errors = append(errors, "upwork_api.access_token is required when upwork_api is enabled")
+		}
+		// When using API, searches define what to search for
+		if len(cfg.Searches) == 0 {
+			errors = append(errors, "at least one search configuration is required when using upwork_api")
+		}
 	}
 
 	// Validate RSS feeds
@@ -78,15 +96,13 @@ func validate(cfg *AppConfig) error {
 		}
 	}
 
-	// Validate searches (only if no RSS feeds configured)
-	if len(cfg.RSSFeeds) == 0 {
-		for i, search := range cfg.Searches {
-			if search.Name == "" {
-				errors = append(errors, fmt.Sprintf("search[%d]: name is required", i))
-			}
-			if len(search.Keywords) == 0 {
-				errors = append(errors, fmt.Sprintf("search[%d]: at least one keyword is required", i))
-			}
+	// Validate searches
+	for i, search := range cfg.Searches {
+		if search.Name == "" {
+			errors = append(errors, fmt.Sprintf("searches[%d]: name is required", i))
+		}
+		if len(search.Keywords) == 0 {
+			errors = append(errors, fmt.Sprintf("searches[%d]: at least one keyword is required", i))
 		}
 	}
 

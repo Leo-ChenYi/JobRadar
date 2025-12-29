@@ -9,17 +9,24 @@ const (
 	JobTypeAll    JobType = "all"
 )
 
+// UpworkAPIConfig represents Upwork API configuration
+type UpworkAPIConfig struct {
+	Enabled     bool   `yaml:"enabled" mapstructure:"enabled"`
+	AccessToken string `yaml:"access_token" mapstructure:"access_token"`
+}
+
 // RSSFeedConfig represents a direct RSS feed URL configuration
 type RSSFeedConfig struct {
 	Name string `yaml:"name" mapstructure:"name"`
 	URL  string `yaml:"url" mapstructure:"url"`
 }
 
-// SearchConfig represents a single search configuration (deprecated for public RSS)
+// SearchConfig represents a search configuration with keywords
 type SearchConfig struct {
 	Name     string   `yaml:"name" mapstructure:"name"`
 	Keywords []string `yaml:"keywords" mapstructure:"keywords"`
 	Category string   `yaml:"category,omitempty" mapstructure:"category"`
+	Limit    int      `yaml:"limit,omitempty" mapstructure:"limit"` // Max jobs to fetch per search
 }
 
 // BudgetFilter represents budget range filter
@@ -83,6 +90,7 @@ type StorageConfig struct {
 // AppConfig represents the complete application configuration
 type AppConfig struct {
 	Name          string             `yaml:"name" mapstructure:"name"`
+	UpworkAPI     UpworkAPIConfig    `yaml:"upwork_api" mapstructure:"upwork_api"`
 	RSSFeeds      []RSSFeedConfig    `yaml:"rss_feeds" mapstructure:"rss_feeds"`
 	Searches      []SearchConfig     `yaml:"searches" mapstructure:"searches"`
 	Filters       FilterConfig       `yaml:"filters" mapstructure:"filters"`
