@@ -33,6 +33,11 @@ func Load() (*AppConfig, error) {
 
 // expandEnvVars replaces ${VAR} patterns with environment variable values
 func expandEnvVars(cfg *AppConfig) {
+	// RSS Feeds
+	for i := range cfg.RSSFeeds {
+		cfg.RSSFeeds[i].URL = expandEnvVar(cfg.RSSFeeds[i].URL)
+	}
+
 	// Telegram config
 	cfg.Notifications.Telegram.BotToken = expandEnvVar(cfg.Notifications.Telegram.BotToken)
 	cfg.Notifications.Telegram.ChatID = expandEnvVar(cfg.Notifications.Telegram.ChatID)
@@ -58,18 +63,30 @@ func expandEnvVar(s string) string {
 func validate(cfg *AppConfig) error {
 	var errors []string
 
-	// Check if at least one search is configured
-	if len(cfg.Searches) == 0 {
-		errors = append(errors, "at least one search configuration is required")
+	// Check if at least one RSS feed or search is configured
+	if len(cfg.RSSFeeds) == 0 && len(cfg.Searches) == 0 {
+		errors = append(errors, "at least one rss_feeds or searches configuration is required")
 	}
 
-	// Validate searches
-	for i, search := range cfg.Searches {
-		if search.Name == "" {
-			errors = append(errors, fmt.Sprintf("search[%d]: name is required", i))
+	// Validate RSS feeds
+	for i, feed := range cfg.RSSFeeds {
+		if feed.Name == "" {
+			errors = append(errors, fmt.Sprintf("rss_feeds[%d]: name is required", i))
 		}
-		if len(search.Keywords) == 0 {
-			errors = append(errors, fmt.Sprintf("search[%d]: at least one keyword is required", i))
+		if feed.URL == "" || strings.HasPrefix(feed.URL, "${") {
+			errors = append(errors, fmt.Sprintf("rss_feeds[%d]: url is required (set environment variable or paste URL directly)", i))
+		}
+	}
+
+	// Validate searches (only if no RSS feeds configured)
+	if len(cfg.RSSFeeds) == 0 {
+		for i, search := range cfg.Searches {
+			if search.Name == "" {
+				errors = append(errors, fmt.Sprintf("search[%d]: name is required", i))
+			}
+			if len(search.Keywords) == 0 {
+				errors = append(errors, fmt.Sprintf("search[%d]: at least one keyword is required", i))
+			}
 		}
 	}
 

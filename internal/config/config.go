@@ -9,7 +9,13 @@ const (
 	JobTypeAll    JobType = "all"
 )
 
-// SearchConfig represents a single search configuration
+// RSSFeedConfig represents a direct RSS feed URL configuration
+type RSSFeedConfig struct {
+	Name string `yaml:"name" mapstructure:"name"`
+	URL  string `yaml:"url" mapstructure:"url"`
+}
+
+// SearchConfig represents a single search configuration (deprecated for public RSS)
 type SearchConfig struct {
 	Name     string   `yaml:"name" mapstructure:"name"`
 	Keywords []string `yaml:"keywords" mapstructure:"keywords"`
@@ -77,6 +83,7 @@ type StorageConfig struct {
 // AppConfig represents the complete application configuration
 type AppConfig struct {
 	Name          string             `yaml:"name" mapstructure:"name"`
+	RSSFeeds      []RSSFeedConfig    `yaml:"rss_feeds" mapstructure:"rss_feeds"`
 	Searches      []SearchConfig     `yaml:"searches" mapstructure:"searches"`
 	Filters       FilterConfig       `yaml:"filters" mapstructure:"filters"`
 	Notifications NotificationConfig `yaml:"notifications" mapstructure:"notifications"`

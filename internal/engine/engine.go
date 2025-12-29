@@ -60,16 +60,41 @@ func (e *Engine) Run() (*model.RunStats, error) {
 
 	log.Info().Msg("Fetching jobs from RSS feeds...")
 
-	// 1. Fetch jobs from all search configurations
+	// 1. Fetch jobs - prefer direct RSS URLs over keyword search
 	var allJobs []*model.Job
-	for _, search := range e.config.Searches {
-		jobs, err := e.fetcher.Fetch(search.Keywords)
-		if err != nil {
-			log.Error().Err(err).Str("search", search.Name).Msg("Failed to fetch")
-			continue
+	var feedNames []string // Track which feeds the jobs came from
+
+	// Method 1: Use direct RSS URLs (recommended)
+	if len(e.config.RSSFeeds) > 0 {
+		for _, feed := range e.config.RSSFeeds {
+			jobs, err := e.fetcher.FetchFromURL(feed.URL)
+			if err != nil {
+				log.Error().Err(err).Str("feed", feed.Name).Msg("Failed to fetch RSS feed")
+				continue
+			}
+			for _, job := range jobs {
+				allJobs = append(allJobs, job)
+				feedNames = append(feedNames, feed.Name)
+			}
+			log.Info().Str("feed", feed.Name).Int("count", len(jobs)).Msg("Fetched jobs from RSS feed")
 		}
-		allJobs = append(allJobs, jobs...)
-		log.Debug().Str("search", search.Name).Int("count", len(jobs)).Msg("Fetched jobs")
+	}
+
+	// Method 2: Fallback to keyword search (deprecated)
+	if len(e.config.RSSFeeds) == 0 && len(e.config.Searches) > 0 {
+		log.Warn().Msg("Using deprecated keyword search - public RSS is no longer supported by Upwork")
+		for _, search := range e.config.Searches {
+			jobs, err := e.fetcher.Fetch(search.Keywords)
+			if err != nil {
+				log.Error().Err(err).Str("search", search.Name).Msg("Failed to fetch")
+				continue
+			}
+			for _, job := range jobs {
+				allJobs = append(allJobs, job)
+				feedNames = append(feedNames, search.Name)
+			}
+			log.Debug().Str("search", search.Name).Int("count", len(jobs)).Msg("Fetched jobs")
+		}
 	}
 
 	stats.JobsFetched = len(allJobs)
@@ -79,13 +104,29 @@ func (e *Engine) Run() (*model.RunStats, error) {
 	log.Info().Msg("Filtering jobs...")
 	var matchedJobs []*model.MatchedJob
 
-	for _, job := range allJobs {
-		for _, search := range e.config.Searches {
-			keywords := e.filter.Match(job, search.Keywords)
-			if len(keywords) > 0 {
-				matchedJobs = append(matchedJobs, model.NewMatchedJob(job, keywords, search.Name))
-				break // A job only matches once
+	for i, job := range allJobs {
+		// Get keywords to match against
+		var keywords []string
+		feedName := feedNames[i]
+
+		// If using RSS feeds, use filter exclude keywords only (job already matches the feed criteria)
+		if len(e.config.RSSFeeds) > 0 {
+			// For RSS feeds, we consider all jobs as "matched" since they already come from a filtered feed
+			// We just apply our additional filters
+			keywords = []string{feedName} // Use feed name as the "matched keyword"
+		} else {
+			// For keyword search, find matching keywords
+			for _, search := range e.config.Searches {
+				if search.Name == feedName {
+					keywords = search.Keywords
+					break
+				}
 			}
+		}
+
+		matchedKeywords := e.filter.Match(job, keywords)
+		if len(matchedKeywords) > 0 {
+			matchedJobs = append(matchedJobs, model.NewMatchedJob(job, matchedKeywords, feedName))
 		}
 	}
 

@@ -48,16 +48,22 @@ make build
 cp config.example.yaml config.yaml
 ```
 
-2. Edit `config.yaml` with your settings:
+2. **Get your Upwork RSS URL** (Important!):
+   - Login to your Upwork account
+   - Go to **Find Work** page
+   - Set your search filters (keywords, budget, etc.)
+   - Click the **RSS icon** (usually top-right of search results)
+   - Copy the full URL (it contains your authentication token)
+
+3. Edit `config.yaml` with your settings:
 
 ```yaml
 name: "My Job Monitor"
 
-searches:
-  - name: "Golang API"
-    keywords: 
-      - "golang api"
-      - "go backend"
+# Use your authenticated RSS URLs from Upwork
+rss_feeds:
+  - name: "Golang Jobs"
+    url: "https://www.upwork.com/ab/feed/jobs/rss?securityToken=YOUR_TOKEN&userUid=YOUR_UID&..."
 
 filters:
   budget:
@@ -84,12 +90,14 @@ schedule:
     timezone: "Asia/Shanghai"
 ```
 
-3. Set environment variables:
+4. Set environment variables:
 
 ```bash
 export TELEGRAM_BOT_TOKEN="your_bot_token"
 export TELEGRAM_CHAT_ID="your_chat_id"
 ```
+
+> **Note**: Upwork no longer supports public RSS feeds. You must login to Upwork and get your personal RSS URL which includes authentication tokens.
 
 ### Usage
 

@@ -3,7 +3,26 @@
 
 name: "My Job Monitor"
 
-# ============ Search Configurations ============
+# ============ RSS Feed Configuration ============
+# How to get your RSS URL:
+# 1. Login to Upwork
+# 2. Go to Find Work page
+# 3. Set your search filters
+# 4. Click the RSS icon (usually top-right of search results)
+# 5. Copy the full URL including securityToken
+
+# Option 1: Use direct RSS URLs (recommended)
+# Each URL is a complete RSS feed URL from Upwork with your auth token
+rss_feeds:
+  - name: "Golang Jobs"
+    url: "${UPWORK_RSS_URL_1}"  # Set in environment variable
+    # Or paste directly: "https://www.upwork.com/ab/feed/jobs/rss?securityToken=xxx&..."
+  
+  # - name: "Python Jobs"
+  #   url: "${UPWORK_RSS_URL_2}"
+
+# Option 2: Use keyword search (DEPRECATED - Upwork no longer supports public RSS)
+# Only works if you have a valid base RSS URL with auth token
 searches:
   - name: "Golang API"
     keywords: 

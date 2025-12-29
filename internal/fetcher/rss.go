@@ -28,7 +28,44 @@ func NewRSSFetcher() *RSSFetcher {
 	}
 }
 
-// Fetch retrieves jobs for the given keywords
+// FetchFromURL retrieves jobs from a direct RSS URL (recommended method)
+func (f *RSSFetcher) FetchFromURL(feedURL string) ([]*model.Job, error) {
+	var jobs []*model.Job
+
+	log.Debug().Str("url", feedURL).Msg("Fetching RSS feed from URL")
+
+	resp, err := f.client.Get(feedURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch RSS: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("RSS fetch failed with status %d", resp.StatusCode)
+	}
+
+	feed, err := f.parser.Parse(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse RSS: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	for _, item := range feed.Items {
+		job := ParseRSSItem(item)
+
+		// Deduplicate within this batch
+		if !seen[job.ID] {
+			seen[job.ID] = true
+			jobs = append(jobs, job)
+		}
+	}
+
+	log.Debug().Int("count", len(jobs)).Msg("Fetched jobs from URL")
+	return jobs, nil
+}
+
+// Fetch retrieves jobs for the given keywords (DEPRECATED: Upwork no longer supports public RSS)
+// Use FetchFromURL with authenticated RSS URLs instead
 func (f *RSSFetcher) Fetch(keywords []string) ([]*model.Job, error) {
 	var jobs []*model.Job
 	seen := make(map[string]bool)
@@ -45,7 +82,7 @@ func (f *RSSFetcher) Fetch(keywords []string) ([]*model.Job, error) {
 
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			log.Error().Int("status", resp.StatusCode).Str("keyword", keyword).Msg("RSS fetch failed")
+			log.Error().Int("status", resp.StatusCode).Str("keyword", keyword).Msg("RSS fetch failed - public RSS is deprecated, use rss_feeds config instead")
 			continue
 		}
 
