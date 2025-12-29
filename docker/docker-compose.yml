@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  jobradar:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: jobradar
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - jobradar-data:/app/data
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - EMAIL_USERNAME=${EMAIL_USERNAME:-}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-}
+      - TZ=Asia/Shanghai
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/app/jobradar", "validate"]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  jobradar-data:
+    driver: local
+
